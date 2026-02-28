@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>建筑全年逐时负荷计算系统</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+        }
+        
+        body {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.08);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+        
+        .form-section {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        h2 {
+            color: #34495e;
+            margin-bottom: 20px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+        }
+        
+        h2::before {
+            content: "";
+            display: inline-block;
+            width: 4px;
+            height: 20px;
+            background-color: #3498db;
+            margin-right: 10px;
+        }
+        
+        /* 基础参数配置：2个输入框一行 */
+        .base-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            align-items: end;
+        }
+        
+        /* 其他配置：5个输入框一行 */
+        .five-col-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        label {
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+        
+        input {
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            /* 统一输入框高度 */
+            height: 44px;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+        
+        .btn-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        button {
+            padding: 12px 40px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        /* 加载状态 */
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+            color: #3498db;
+        }
+        
+        .loading::after {
+            content: "";
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(52, 152, 219, 0.3);
+            border-radius: 50%;
+            border-top-color: #3498db;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 错误提示 */
+        .error {
+            color: #e74c3c;
+            padding: 12px 15px;
+            background-color: #fef0f0;
+            border-radius: 6px;
+            margin: 15px 0;
+            display: none;
+            border-left: 4px solid #e74c3c;
+        }
+        
+        /* 结果区域 */
+        .result-section {
+            margin-top: 40px;
+            padding: 25px;
+            background-color: #f5f9ff;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .result-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .result-item {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .result-label {
+            font-weight: 600;
+            color: #34495e;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .result-value {
+            font-size: 18px;
+            color: #2c3e50;
+            font-weight: 700;
+        }
+        
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        
+        .summary-table th, .summary-table td {
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #e9ecef;
+        }
+        
+        .summary-table th {
+            background-color: #eef2f7;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .summary-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>建筑全年逐时负荷计算系统</h1>
+        
+        <!-- 表单区域 -->
+        <div class="form-section">
+            <h2>基础参数配置</h2>
+            <div class="base-grid">
+                <div class="form-group">
+                    <label for="city">城市（支持：Beijing/Chengdu/Guangzhou/Hangzhou/Harbin/Jinan/Shanghai）</label>
+                    <input type="text" id="city" value="Beijing" required>
+                </div>
+                <div class="form-group">
+                    <label for="building_volume">建筑体积 (m³)</label>
+                    <input type="number" id="building_volume" step="0.01" value="3446.83" required>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-section">
+            <h2>墙体面积配置 (㎡)</h2>
+            <div class="five-col-grid">
+                <div class="form-group">
+                    <label for="wall_E">东墙面积</label>
+                    <input type="number" id="wall_E" step="0.01" value="206.0" required>
+                </div>
+                <div class="form-group">
+                    <label for="wall_S">南墙面积</label>
+                    <input type="number" id="wall_S" step="0.01" value="325.0" required>
+                </div>
+                <div class="form-group">
+                    <label for="wall_W">西墙面积</label>
+                    <input type="number" id="wall_W" step="0.01" value="167.0" required>
+                </div>
+                <div class="form-group">
+                    <label for="wall_N">北墙面积</label>
+                    <input type="number" id="wall_N" step="0.01" value="298.0" required>
+                </div>
+                <div class="form-group">
+                    <label for="wall_H">屋顶面积</label>
+                    <input type="number" id="wall_H" step="0.01" value="283.3" required>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-section">
+            <h2>窗户面积配置 (㎡)</h2>
+            <div class="five-col-grid">
+                <div class="form-group">
+                    <label for="window_E">东窗面积</label>
+                    <input type="number" id="window_E" step="0.01" value="85.6" required>
+                </div>
+                <div class="form-group">
+                    <label for="window_S">南窗面积</label>
+                    <input type="number" id="window_S" step="0.01" value="188.0" required>
+                </div>
+                <div class="form-group">
+                    <label for="window_W">西窗面积</label>
+                    <input type="number" id="window_W" step="0.01" value="75.6" required>
+                </div>
+                <div class="form-group">
+                    <label for="window_N">北窗面积</label>
+                    <input type="number" id="window_N" step="0.01" value="105.0" required>
+                </div>
+                <div class="form-group">
+                    <label for="window_H">屋顶窗面积</label>
+                    <input type="number" id="window_H" step="0.01" value="0.0" required>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-section">
+            <h2>墙体K值配置</h2>
+            <div class="five-col-grid">
+                <div class="form-group">
+                    <label for="wall_k_E">东墙K值</label>
+                    <input type="number" id="wall_k_E" step="0.01" value="40" required>
+                </div>
+                <div class="form-group">
+                    <label for="wall_k_S">南墙K值</label>
+                    <input type="number" id="wall_k_S" step="0.01" value="80" required>
+                </div>
+                <div class="form-group">
+                    <label for="wall_k_W">西墙K值</label>
+                    <input type="number" id="wall_k_W" step="0.01" value="50" required>
+                </div>
+                <div class="form-group">
+                    <label for="wall_k_N">北墙K值</label>
+                    <input type="number" id="wall_k_N" step="0.01" value="70" required>
+                </div>
+                <div class="form-group">
+                    <label for="wall_k_H">屋顶K值</label>
+                    <input type="number" id="wall_k_H" step="0.01" value="50" required>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-section">
+            <h2>窗户K值配置</h2>
+            <div class="five-col-grid">
+                <div class="form-group">
+                    <label for="window_k_E">东窗K值</label>
+                    <input type="number" id="window_k_E" step="0.01" value="30" required>
+                </div>
+                <div class="form-group">
+                    <label for="window_k_S">南窗K值</label>
+                    <input type="number" id="window_k_S" step="0.01" value="20" required>
+                </div>
+                <div class="form-group">
+                    <label for="window_k_W">西窗K值</label>
+                    <input type="number" id="window_k_W" step="0.01" value="40" required>
+                </div>
+                <div class="form-group">
+                    <label for="window_k_N">北窗K值</label>
+                    <input type="number" id="window_k_N" step="0.01" value="50" required>
+                </div>
+                <div class="form-group">
+                    <label for="window_k_H">屋顶窗K值</label>
+                    <input type="number" id="window_k_H" step="0.01" value="40" required>
+                </div>
+            </div>
+        </div>
+        
+        <div class="btn-container">
+            <button id="calculateBtn">开始计算建筑负荷</button>
+        </div>
+        
+        <div class="loading" id="loading">正在进行建筑负荷计算，请稍候</div>
+        <div class="error" id="error"></div>
+        
+        <!-- 结果展示区域 -->
+        <div class="result-section" id="resultSection">
+            <div class="result-title">计算结果汇总</div>
+            
+            <div class="result-grid">
+                <div class="result-item">
+                    <div class="result-label">请求处理时间</div>
+                    <div class="result-value" id="requestTime">-</div>
+                </div>
+                <div class="result-item">
+                    <div class="result-label">最大采暖负荷</div>
+                    <div class="result-value" id="maxHeatingLoad">-</div>
+                </div>
+                <div class="result-item">
+                    <div class="result-label">最大制冷负荷</div>
+                    <div class="result-value" id="maxCoolingLoad">-</div>
+                </div>
+                <div class="result-item">
+                    <div class="result-label">建筑热容量</div>
+                    <div class="result-value" id="capacitanceCalculated">-</div>
+                </div>
+                <div class="result-item">
+                    <div class="result-label">全年采暖总量</div>
+                    <div class="result-value" id="yearlyHeatingSum">-</div>
+                </div>
+                <div class="result-item">
+                    <div class="result-label">全年制冷总量</div>
+                    <div class="result-value" id="yearlyCoolingSum">-</div>
+                </div>
+            </div>
+            
+            <!-- 月度汇总表格 -->
+            <div style="margin-top: 30px;">
+                <h3 style="margin-bottom: 15px; color: #34495e; font-size: 16px;">月度负荷汇总</h3>
+                <div style="overflow-x: auto;">
+                    <table class="summary-table">
+                        <thead>
+                            <tr>
+                                <th>月份</th>
+                                <th>采暖负荷</th>
+                                <th>制冷负荷</th>
+                                <th>渗透负荷</th>
+                                <th>通风负荷</th>
+                                <th>太阳辐射</th>
+                                <th>内部得热</th>
+                            </tr>
+                        </thead>
+                        <tbody id="monthlyTableBody">
+                            <!-- 动态生成月度数据 -->
+                        </tbody>
+                        <tfoot>
+                            <tr style="font-weight: 600; background-color: #eef2f7;">
+                                <td>全年总计</td>
+                                <td id="sumHeating">-</td>
+                                <td id="sumCooling">-</td>
+                                <td id="sumInfiltr">-</td>
+                                <td id="sumVentilat">-</td>
+                                <td id="sumSolarRad">-</td>
+                                <td id="sumIntGains">-</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM元素获取
+        const calculateBtn = document.getElementById('calculateBtn');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const resultSection = document.getElementById('resultSection');
+        const monthlyTableBody = document.getElementById('monthlyTableBody');
+        
+        // 月份映射
+        const months = ['一月', '二月', '三月', '四月', '五月', '六月', 
+                        '七月', '八月', '九月', '十月', '十一月', '十二月'];
+        
+        // 计算按钮点击事件
+        calculateBtn.addEventListener('click', async function() {
+            try {
+                // 重置状态
+                error.style.display = 'none';
+                resultSection.style.display = 'none';
+                monthlyTableBody.innerHTML = '';
+                
+                // 显示加载状态
+                loading.style.display = 'block';
+                calculateBtn.disabled = true;
+                
+                // 收集表单数据
+                const formData = {
+                    city: document.getElementById('city').value.trim(),
+                    wall_areas: {
+                        E: parseFloat(document.getElementById('wall_E').value),
+                        S: parseFloat(document.getElementById('wall_S').value),
+                        W: parseFloat(document.getElementById('wall_W').value),
+                        N: parseFloat(document.getElementById('wall_N').value),
+                        H: parseFloat(document.getElementById('wall_H').value)
+                    },
+                    window_areas: {
+                        E: parseFloat(document.getElementById('window_E').value),
+                        S: parseFloat(document.getElementById('window_S').value),
+                        W: parseFloat(document.getElementById('window_W').value),
+                        N: parseFloat(document.getElementById('window_N').value),
+                        H: parseFloat(document.getElementById('window_H').value)
+                    },
+                    building_volume: parseFloat(document.getElementById('building_volume').value),
+                    wall_k_values: {
+                        E: parseFloat(document.getElementById('wall_k_E').value),
+                        S: parseFloat(document.getElementById('wall_k_S').value),
+                        W: parseFloat(document.getElementById('wall_k_W').value),
+                        N: parseFloat(document.getElementById('wall_k_N').value),
+                        H: parseFloat(document.getElementById('wall_k_H').value)
+                    },
+                    window_k_values: {
+                        E: parseFloat(document.getElementById('window_k_E').value),
+                        S: parseFloat(document.getElementById('window_k_S').value),
+                        W: parseFloat(document.getElementById('window_k_W').value),
+                        N: parseFloat(document.getElementById('window_k_N').value),
+                        H: parseFloat(document.getElementById('window_k_H').value)
+                    }
+                };
+                
+                // 数据验证
+                if (isNaN(formData.building_volume)) {
+                    throw new Error('建筑体积必须是有效的数字');
+                }
+                
+                // 调用API接口
+                const response = await fetch('http://aihvac.online:5000/api/trnsys/calculate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                // 解析响应数据
+                const apiResult = await response.json();
+                
+                // 检查API返回状态
+                if (apiResult.code !== 200) {
+                    throw new Error(apiResult.msg || '计算请求失败');
+                }
+                
+                // 提取核心数据
+                const data = apiResult.data;
+                
+                // 填充基础结果
+                document.getElementById('requestTime').textContent = data.request_time;
+                document.getElementById('maxHeatingLoad').textContent = data.max_heating_load.toFixed(2);
+                document.getElementById('maxCoolingLoad').textContent = data.max_cooling_load.toFixed(2);
+                document.getElementById('capacitanceCalculated').textContent = data.capacitance_calculated.toFixed(2);
+                
+                // 填充全年总和
+                document.getElementById('yearlyHeatingSum').textContent = data.monthly_summary.sum.heating.toFixed(2);
+                document.getElementById('yearlyCoolingSum').textContent = data.monthly_summary.sum.cooling.toFixed(2);
+                
+                // 填充总计行
+                document.getElementById('sumHeating').textContent = data.monthly_summary.sum.heating.toFixed(2);
+                document.getElementById('sumCooling').textContent = data.monthly_summary.sum.cooling.toFixed(2);
+                document.getElementById('sumInfiltr').textContent = data.monthly_summary.sum.infiltr.toFixed(2);
+                document.getElementById('sumVentilat').textContent = data.monthly_summary.sum.ventilat.toFixed(2);
+                document.getElementById('sumSolarRad').textContent = data.monthly_summary.sum.solar_rad.toFixed(2);
+                document.getElementById('sumIntGains').textContent = data.monthly_summary.sum.int_gains.toFixed(2);
+                
+                // 生成月度数据行
+                const monthlyData = data.monthly_summary.monthly;
+                for (let i = 0; i < 12; i++) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${months[i]}</td>
+                        <td>${monthlyData.heating[i].toFixed(2)}</td>
+                        <td>${monthlyData.cooling[i].toFixed(2)}</td>
+                        <td>${monthlyData.infiltr[i].toFixed(2)}</td>
+                        <td>${monthlyData.ventilat[i].toFixed(2)}</td>
+                        <td>${monthlyData.solar_rad[i].toFixed(2)}</td>
+                        <td>${monthlyData.int_gains[i].toFixed(2)}</td>
+                    `;
+                    monthlyTableBody.appendChild(row);
+                }
+                
+                // 显示结果区域
+                resultSection.style.display = 'block';
+                
+            } catch (err) {
+                // 显示错误信息
+                error.textContent = `计算出错：${err.message}`;
+                error.style.display = 'block';
+                console.error('计算错误:', err);
+            } finally {
+                // 隐藏加载状态
+                loading.style.display = 'none';
+                calculateBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
